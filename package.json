@@ -1,0 +1,25 @@
+{
+  "name": "voice-chat-project",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "sync:android": "npm run build && npx cap sync android",
+    "apk:debug": "npm run sync:android && ./android/gradlew -p android assembleDebug",
+    "test": "node --test test/*.test.js",
+    "postinstall": "patch-package"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0",
+    "patch-package": "^8.0.1",
+    "vite": "^5.4.10"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "llama-cpp-pro": "^0.2.4"
+  }
+}

@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>小满 · 端侧陪护</title>
+<style>
+:root { color-scheme: light; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f8f9fa;
+  color: #1a1a2e;
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  -webkit-user-select: none; user-select: none;
+}
+
+/* Header */
+.header {
+  padding: 14px 20px; background: white; border-bottom: 1px solid #e8e8ed;
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+.engine-status { display: flex; gap: 4px; align-items: center; }
+.st-chip { display: flex; align-items: center; gap: 3px; font-size: 10px; color: #999; padding: 2px 6px; border-radius: 10px; background: #f4f4f7; }
+.st-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: #bbb; }
+.st-chip.ok { color: #16a34a; background: #e8f7ee; }
+.st-chip.ok .dot { background: #16a34a; }
+.st-chip.error { color: #dc2626; background: #fdeaea; }
+.st-chip.error .dot { background: #dc2626; }
+.st-chip.pending { color: #b45309; background: #fdf0dc; }
+.st-chip.pending .dot { background: #b45309; animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: 0.3; } }
+.selfcheck { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; font-size: 12px; border-top: 1px solid #eee; }
+.selfcheck-row { display: flex; gap: 8px; align-items: center; }
+.selfcheck-btn { background: #2563eb; color: white; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; }
+.selfcheck-btn:disabled { background: #9db8f0; cursor: not-allowed; }
+.sc-line { color: #444; font-size: 11px; }
+.header-actions { display: flex; gap: 10px; align-items: center; }
+.tts-toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #666; cursor: pointer; }
+.tts-toggle input { accent-color: #2563eb; cursor: pointer; }
+.clear-btn { background: none; border: 1px solid #ddd; border-radius: 6px; padding: 4px 12px; font-size: 12px; color: #999; cursor: pointer; transition: all 0.15s; }
+.clear-btn:hover { background: #f0f0f0; color: #666; border-color: #ccc; }
+
+/* Conversation */
+.conversation { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+.message { max-width: 85%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.55; animation: fadeUp 0.25s ease; word-break: break-word; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.message.user { align-self: flex-end; background: #2563eb; color: white; border-bottom-right-radius: 4px; }
+.message.assistant { align-self: flex-start; background: white; color: #1a1a2e; border: 1px solid #e8e8ed; border-bottom-left-radius: 4px; }
+.message.assistant.playing { border-color: #93b4f5; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+.message-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; opacity: 0.55; margin-bottom: 3px; font-weight: 600; }
+.message.user .message-label { color: rgba(255,255,255,0.7); }
+.typing-indicator { display: inline-flex; gap: 4px; padding: 4px 0; }
+.typing-indicator span { width: 6px; height: 6px; border-radius: 50%; background: #93b4f5; animation: bounce 1.2s infinite; }
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+/* Empty state */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: #aaa; gap: 8px; padding: 40px 0; }
+.empty-state-icon { width: 56px; height: 56px; border-radius: 50%; background: #f0f0f5; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
+.empty-state-icon svg { width: 26px; height: 26px; color: #bbb; }
+.empty-state-text { font-size: 15px; font-weight: 500; }
+.empty-state-hint { font-size: 12px; color: #ccc; }
+
+/* Controls (bottom bar) */
+.controls { padding: 12px 20px 20px; background: white; border-top: 1px solid #e8e8ed; display: flex; flex-direction: column; align-items: center; gap: 8px; flex-shrink: 0; position: relative; }
+.status-line { font-size: 13px; color: #999; min-height: 18px; transition: color 0.2s; display: flex; align-items: center; gap: 6px; }
+.status-line.recording { color: #16a34a; font-weight: 500; }
+.status-line.thinking { color: #2563eb; }
+.status-line.error { color: #dc2626; font-weight: 500; }
+.rec-dot { width: 7px; height: 7px; border-radius: 50%; background: #16a34a; animation: dotPulse 0.8s infinite; display: none; }
+.status-line.recording .rec-dot { display: block; }
+@keyframes dotPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.thinking-spinner { width: 14px; height: 14px; border: 2px solid #e0e0e0; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+.status-line.thinking .thinking-spinner { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.interim-text { font-size: 14px; color: #888; font-style: italic; min-height: 20px; max-width: 280px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Mic container */
+.mic-container { position: relative; display: flex; align-items: center; justify-content: center; }
+.mic-button { width: 68px; height: 68px; border-radius: 50%; border: none; background: #e8e8ed; color: #888; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; box-shadow: 0 2px 10px rgba(0,0,0,0.06); position: relative; z-index: 2; }
+.mic-button:hover { background: #dcdce4; color: #555; transform: scale(1.06); box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+.mic-button.recording { background: #16a34a; color: white; transform: scale(1.08); box-shadow: 0 0 0 0 rgba(22,163,74,0.5); animation: micPulse 1.6s infinite; }
+@keyframes micPulse { 0% { box-shadow: 0 0 0 0 rgba(22,163,74,0.45); } 70% { box-shadow: 0 0 0 18px rgba(22,163,74,0); } 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); } }
+.mic-button:disabled { background: #c4c4c4; cursor: not-allowed; box-shadow: none; animation: none; }
+.mic-button:disabled:hover { transform: none; }
+.mic-icon { width: 27px; height: 27px; pointer-events: none; }
+.mic-button.recording .mic-icon { animation: vibrate 0.3s infinite alternate; }
+@keyframes vibrate { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+
+/* Timer ring */
+.timer-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 86px; height: 86px; pointer-events: none; z-index: 1; }
+.timer-ring circle { fill: none; stroke: #16a34a; stroke-width: 3; stroke-linecap: round; opacity: 0; transition: opacity 0.2s; }
+.timer-ring.active circle { opacity: 1; }
+
+/* Duration counter */
+.duration-counter { font-size: 11px; color: #aaa; font-variant-numeric: tabular-nums; min-width: 28px; text-align: center; }
+
+/* Unsupported banner */
+.unsupported { display: none; padding: 40px 20px; text-align: center; color: #999; flex: 1; align-items: center; justify-content: center; flex-direction: column; gap: 6px; }
+.unsupported.show { display: flex; }
+.unsupported h2 { font-size: 16px; margin-bottom: 4px; color: #666; }
+.unsupported p { font-size: 13px; line-height: 1.6; max-width: 240px; }
+
+/* Shortcut hint */
+.shortcut-hint { font-size: 10px; color: #ccc; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>小满</h1>
+  <div class="engine-status" id="engineStatus" title="引擎状态">
+    <span class="st-chip" id="stAsr"><i class="dot"></i>ASR</span>
+    <span class="st-chip" id="stTts"><i class="dot"></i>TTS</span>
+    <span class="st-chip" id="stLlm"><i class="dot"></i>LLM</span>
+  </div>
+  <div class="header-actions">
+    <label class="tts-toggle">
+      <input type="checkbox" id="ttsToggle" checked>
+      <span>Voice reply</span>
+    </label>
+    <button class="clear-btn" id="clearBtn">Clear</button>
+  </div>
+</div>
+
+<div class="conversation" id="conversation">
+  <div class="empty-state">
+    <div class="empty-state-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    </div>
+    <div class="empty-state-text">Tap to speak</div>
+    <div class="empty-state-hint">Tap again to stop &middot; max 10s</div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="interim-text" id="interimText"></div>
+  <div class="status-line" id="statusLine">
+    <span class="rec-dot" id="recDot"></span>
+    <span class="thinking-spinner" id="thinkSpinner"></span>
+    <span id="statusText">Hold to speak</span>
+  </div>
+  <div class="mic-container">
+    <button class="mic-button" id="micButton" aria-label="Tap to record">
+      <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    </button>
+    <svg class="timer-ring" id="timerRing" viewBox="0 0 86 86">
+      <circle cx="43" cy="43" r="39"/>
+    </svg>
+  </div>
+  <div class="duration-counter" id="durationCounter"></div>
+  <div class="shortcut-hint">or tap Space key</div>
+</div>
+
+<div class="unsupported" id="unsupported">
+  <h2>Browser not supported</h2>
+  <p>小满需要支持 Web Speech API 的浏览器（Chrome/Edge）。请在支持的浏览器中打开。</p>
+</div>
+
+<div class="selfcheck" id="selfcheck">
+  <div class="selfcheck-row">
+    <button class="selfcheck-btn" id="selfCheckBtn">自检（说→转写→回复→播报）</button>
+    <span class="sc-line" id="scLine"></span>
+  </div>
+</div>
+
+<script type="module" src="src/llm-bridge.js"></script>
+<script type="module" src="src/voice-bridge.js"></script>
+<script type="module" src="src/ui-util.js"></script>
+<script>
+(function() {
+  const conversationEl = document.getElementById('conversation');
+  const interimTextEl = document.getElementById('interimText');
+  const statusLine = document.getElementById('statusLine');
+  const statusText = document.getElementById('statusText');
+  const micButton = document.getElementById('micButton');
+  const timerRing = document.getElementById('timerRing');
+  const timerCircle = timerRing.querySelector('circle');
+  const durationCounter = document.getElementById('durationCounter');
+  const ttsToggle = document.getElementById('ttsToggle');
+  const clearBtn = document.getElementById('clearBtn');
+  const stAsr = document.getElementById('stAsr');
+  const stTts = document.getElementById('stTts');
+  const stLlm = document.getElementById('stLlm');
+  const selfCheckBtn = document.getElementById('selfCheckBtn');
+  const scLine = document.getElementById('scLine');
+
+  const bridgeReady = new Promise((resolve) => {
+    const check = () => {
+      if (window.XiaoManVoice) resolve(window.XiaoManVoice);
+      else setTimeout(check, 30);
+    };
+    check();
+  });
+  const companionReady = new Promise((resolve) => {
+    const check = () => {
+      if (window.companion) resolve(window.companion);
+      else setTimeout(check, 30);
+    };
+    check();
+  });
+  const unsupportedEl = document.getElementById('unsupported');
+
+  // --- Constants ---
+  const MAX_DURATION = 10000; // ms
+  const circumference = 2 * Math.PI * 39; // r=39
+  timerCircle.style.strokeDasharray = circumference;
+  timerCircle.style.strokeDashoffset = circumference;
+  timerCircle.style.strokeDasharray = circumference;
+
+  // --- State ---
+  let isRecording = false;
+  let recordingTimer = null;
+  let recordingStartTime = 0;
+  let messageIdCounter = 0;
+  let isProcessing = false;
+  let finalTranscriptAccum = '';
+  let micPermissionGranted = false;
+  let asrCleanup = null;
+
+  // --- Timer ---
+  function startTimerRing() {
+    timerRing.classList.add('active');
+    timerCircle.style.strokeDashoffset = circumference;
+  }
+
+  function stopTimerRing() {
+    timerRing.classList.remove('active');
+    timerCircle.style.strokeDashoffset = circumference;
+    durationCounter.textContent = '';
+  }
+
+  function updateTimerRing(elapsed) {
+    const progress = Math.min(elapsed / MAX_DURATION, 1);
+    timerCircle.style.strokeDashoffset = circumference * (1 - progress);
+    const remaining = Math.max(0, Math.ceil((MAX_DURATION - elapsed) / 1000));
+    durationCounter.textContent = remaining + 's';
+  }
+
+  // --- Status ---
+  function setStatus(text, className) {
+    statusText.textContent = text;
+    statusLine.className = 'status-line';
+    if (className) statusLine.classList.add(className);
+  }
+
+  // --- Speech recognition (via unified Voice bridge: native or web) ---
+  function onAsrPartial(text) {
+    interimTextEl.textContent = text;
+  }
+
+  function onAsrFinal(text) {
+    finalTranscriptAccum = text;
+    interimTextEl.textContent = text;
+  }
+
+  // --- Conversation UI ---
+  function removeEmptyState() {
+    const el = conversationEl.querySelector('.empty-state');
+    if (el) el.remove();
+  }
+
+  function addMessage(role, text, id) {
+    removeEmptyState();
+    const msg = document.createElement('div');
+    msg.className = 'message ' + role;
+    msg.id = 'msg-' + id;
+    const label = role === 'user' ? 'You' : '小满';
+    msg.innerHTML = '<div class="message-label">' + label + '</div>' + escapeHtml(text);
+    conversationEl.appendChild(msg);
+    scrollToBottom();
+    return msg;
+  }
+
+  function updateMessage(id, html) {
+    const msg = document.getElementById('msg-' + id);
+    if (msg) {
+      const labelEl = msg.querySelector('.message-label');
+      const labelHtml = labelEl ? labelEl.outerHTML : '';
+      msg.innerHTML = labelHtml + html;
+      scrollToBottom();
+    }
+  }
+
+  function setMessageText(id, text) {
+    const msg = document.getElementById('msg-' + id);
+    if (msg) {
+      const labelEl = msg.querySelector('.message-label');
+      const labelHtml = labelEl ? labelEl.outerHTML : '';
+      msg.innerHTML = labelHtml + escapeHtml(text);
+      scrollToBottom();
+    }
+  }
+
+  function scrollToBottom() {
+    conversationEl.scrollTop = conversationEl.scrollHeight;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // --- TTS ---
+  async function speak(text) {
+    if (!ttsToggle.checked) return;
+    const voice = await bridgeReady;
+    const msgs = conversationEl.querySelectorAll('.message.assistant');
+    const last = msgs[msgs.length - 1];
+    if (last) last.classList.add('playing');
+    return voice.speak(text, {
+      onEnd: () => { if (last) last.classList.remove('playing'); },
+    });
+  }
+
+  // --- Mic permission ---
+  let permissionRequestInFlight = false;
+
+  async function ensureMicPermission() {
+    if (micPermissionGranted) return true;
+    if (permissionRequestInFlight) return false;
+
+    const voice = await bridgeReady;
+    if (voice.engine === 'native') {
+      micPermissionGranted = true; // native plugin handles runtime permission on asrStart
+      return true;
+    }
+
+    permissionRequestInFlight = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      stream.getTracks().forEach(t => t.stop());
+      micPermissionGranted = true;
+      return true;
+    } catch(e) {
+      const msg = e.name === 'NotAllowedError'
+        ? 'Mic access denied — open voice-chat.html in a real browser tab'
+        : 'Mic error: ' + (e.message || e.name);
+      setStatus(msg, 'error');
+      return false;
+    } finally {
+      permissionRequestInFlight = false;
+    }
+  }
+
+  // --- Core flow ---
+  async function startRecording() {
+    if (isRecording || isProcessing) return;
+
+    if (!micPermissionGranted) {
+      const ok = await ensureMicPermission();
+      if (!ok) return;
+    }
+
+    const voice = await bridgeReady;
+    if (!voice.supported) {
+      unsupportedEl.classList.add('show');
+      micButton.parentElement.style.display = 'none';
+      return;
+    }
+
+    isRecording = true;
+    finalTranscriptAccum = '';
+    interimTextEl.textContent = '';
+
+    const result = await voice.startASR({ onPartial: onAsrPartial, onFinal: onAsrFinal }).catch(e => e || {});
+    if (!result || !result.ok) {
+      isRecording = false;
+      const reason = result?.reason || 'unknown';
+      if (reason === 'mic-permission-denied') {
+        micPermissionGranted = false;
+        setStatus('麦克风权限被拒绝，请到系统设置中允许录音权限后重试', 'error');
+      } else if (reason === 'asr-not-ready') {
+        setStatus('语音引擎加载中，请稍后再试', 'error');
+      } else if (reason === 'asr-start-failed') {
+        setStatus('麦克风不可用，检查权限', 'error');
+      } else if (reason === 'web-speech-error' && result?.detail === 'not-allowed') {
+        micPermissionGranted = false;
+        setStatus('Mic denied — tap again to retry permission', 'error');
+      } else setStatus('识别启动失败：' + reason, 'error');
+      return;
+    }
+    asrCleanup = result.cleanup || null;
+
+    micButton.classList.add('recording');
+    startTimerRing();
+    setStatus('Listening', 'recording');
+    recordingStartTime = Date.now();
+
+    const tick = () => {
+      if (!isRecording) return;
+      const elapsed = Date.now() - recordingStartTime;
+      updateTimerRing(elapsed);
+      if (elapsed >= MAX_DURATION) {
+        stopRecording();
+        return;
+      }
+      recordingTimer = requestAnimationFrame(tick);
+    };
+    recordingTimer = requestAnimationFrame(tick);
+  }
+
+  async function stopRecording() {
+    if (!isRecording) return;
+    isRecording = false;
+    if (recordingTimer) { cancelAnimationFrame(recordingTimer); recordingTimer = null; }
+
+    const finalText = finalTranscriptAccum.trim() || interimTextEl.textContent.trim();
+
+    if (asrCleanup) { try { asrCleanup(); } catch(e) {} asrCleanup = null; }
+
+    micButton.classList.remove('recording');
+    stopTimerRing();
+    interimTextEl.textContent = '';
+
+    if (!finalText) { setStatus('Tap to speak'); return; }
+
+    // Show user message
+    const uid = 'u' + (++messageIdCounter);
+    addMessage('user', finalText, uid);
+
+    // Show assistant placeholder
+    isProcessing = true;
+    micButton.disabled = true;
+    setStatus("小满在想", "thinking");
+    const aid = 'a' + (++messageIdCounter);
+    addMessage('assistant', '', aid);
+    updateMessage(aid, '<div class="typing-indicator"><span></span><span></span><span></span></div>');
+
+    try {
+      let responseText;
+      if (window.companion) {
+        const result = await window.companion.askCompanion(finalText);
+        if (result.ok) {
+          responseText = result.text;
+          if (result.kind === 'crisis') setStatus('陪你', 'thinking');
+        } else {
+          const msg = window.xmUi ? window.xmUi.reasonToMessage(result.reason) : ('（本地引擎没连上：' + (result.reason || 'unknown') + '）');
+          responseText = msg;
+        }
+      } else {
+        responseText = '本地引擎还没加载完成，稍后再试一次。';
+      }
+      setMessageText(aid, responseText);
+      speak(responseText);
+    } catch(e) {
+      setMessageText(aid, 'Sorry, I ran into an issue. Try again?');
+    }
+
+    isProcessing = false;
+    micButton.disabled = false;
+    setStatus('Tap to speak');
+  }
+
+  // --- Event wiring: toggle on click / Space tap ---
+  micButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (isProcessing) return;
+    if (isRecording) { stopRecording(); } else { startRecording(); }
+  });
+
+  // Keyboard: tap Space to toggle
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && !isProcessing && !e.repeat) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+      e.preventDefault();
+      if (isRecording) { stopRecording(); } else { startRecording(); }
+    }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    bridgeReady.then(v => v.stopSpeaking());
+    window.companion && window.companion.clearHistory();
+    conversationEl.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div>
+      <div class="empty-state-text">Tap to speak</div>
+      <div class="empty-state-hint">Tap again to stop &middot; max 10s</div>
+    </div>`;
+    messageIdCounter = 0;
+    // Don't reset mic state — Clear is for conversation, not permissions
+  });
+
+  setStatus('Tap to speak');
+
+  // --- Engine status lights ---
+  function paintStatus(el, status) {
+    el.className = 'st-chip ' + status;
+  }
+  async function refreshEngineStatus() {
+    if (!window.xmUi) return;
+    const voice = await bridgeReady;
+    const companion = await companionReady;
+    const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
+    let companionInit = null, voiceInit = null;
+    if (isNative) {
+      try {
+        voiceInit = voice.init ? await voice.init() : null;
+        if (voiceInit && voiceInit.modelsDir && companion.setModelsDir) companion.setModelsDir(voiceInit.modelsDir);
+        companionInit = companion.init ? await companion.init() : null;
+      } catch (e) { companionInit = { ok: false, reason: 'llm-init-failed' }; }
+    }
+    const webSpeechOk = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    let ollamaOk = false;
+    if (!isNative) {
+      try {
+        const cfg = companion.getConfig ? companion.getConfig() : {};
+        const r = await fetch((cfg.host || 'http://localhost:11434') + '/api/tags', { signal: AbortSignal.timeout(3000) });
+        ollamaOk = r.ok;
+      } catch (e) { ollamaOk = false; }
+    }
+
+    const s = window.xmUi.computeEngineStatus({ engine: isNative ? 'native' : 'web', companionInit, voiceInit, webSpeechOk, ollamaOk });
+    paintStatus(stAsr, s.asr);
+    paintStatus(stTts, s.tts);
+    paintStatus(stLlm, s.llm);
+    if (s.details.length) {
+      const reasons = s.details.map(d => d.part + ':' + (window.xmUi.reasonToMessage(d.reason))).join('；');
+      document.getElementById('engineStatus').title = reasons;
+    }
+    return s;
+  }
+  refreshEngineStatus();
+
+  // --- Self-check: 说→转写→回复→播报 (web/dev) ---
+  selfCheckBtn.addEventListener('click', async () => {
+    if (selfCheckBtn.disabled) return;
+    selfCheckBtn.disabled = true;
+    scLine.textContent = '';
+    const voice = await bridgeReady;
+    const companion = await companionReady;
+    const log = (m) => { scLine.textContent = m; };
+
+    try {
+      // 1. ASR
+      log('① 转写中…（说一句话）');
+      const asr = await new Promise((resolve) => {
+        const t0 = Date.now();
+        voice.startASR({
+          onPartial: () => {},
+          onFinal: (t) => resolve({ ok: true, text: t, ms: Date.now() - t0 }),
+        }).catch(e => resolve(e || { ok: false, reason: 'asr-start-failed' }));
+        setTimeout(() => resolve({ ok: false, reason: 'timeout' }), 15000);
+      });
+      if (!asr.ok) { log('① ✗ ' + (window.xmUi.reasonToMessage(asr.reason))); return; }
+      log('① ✓ 转写：「' + asr.text + '」(' + asr.ms + 'ms)');
+
+      // 2. LLM
+      log('② 小满思考中…');
+      const llm = await companion.askCompanion(asr.text);
+      if (!llm.ok) { log('② ✗ ' + (window.xmUi.reasonToMessage(llm.reason))); return; }
+      log('② ✓ 回复：「' + llm.text.slice(0, 40) + (llm.text.length > 40 ? '…' : '') + '」');
+
+      // 3. TTS
+      log('③ 播报中…');
+      const tts = await voice.speak(llm.text, { onEnd: () => {} });
+      if (!tts || tts.ok === false) { log('③ ✗ ' + (window.xmUi.reasonToMessage(tts?.reason))); return; }
+      log('③ ✓ 已播报 全链路通过');
+    } finally {
+      selfCheckBtn.disabled = false;
+    }
+  });
+
+  // 原生环境预载引擎
+  if (window.companion && window.companion.init && window.Capacitor && window.Capacitor.isNativePlatform()) {
+    // 先注入原生 filesDir 绝对路径，规避 llama-cpp-pro modelInfo 硬编码包名 bug
+    bridgeReady.then((v) => {
+      return v.init ? v.init() : { modelsDir: '' };
+    }).then((r) => {
+      if (window.companion.setModelsDir && r && r.modelsDir) window.companion.setModelsDir(r.modelsDir);
+    }).then(() => window.companion.init()).then((r) => {
+      if (!r.ok) setStatus('小满引擎加载失败：' + (r.reason || 'init-failed'), 'error');
+    });
+  }
+  bridgeReady.then((v) => {
+    if (v.engine === 'native') {
+      v.init().then((r) => {
+        if (!r.ok) setStatus('语音引擎加载失败：' + (r.reason || 'init-failed'), 'error');
+      });
+    }
+  });
+})();
+</script>
+</body>
+</html>
+
