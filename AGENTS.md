@@ -54,3 +54,12 @@ npx cap sync android   # 若有 android/
 ```
 
 **Done 示例**：测试通过（若有）+ web 产物进 `www/`/`dist/` + `cap sync` 无报错。可选穿戴未做可搁置，不纳入强制 Done。
+
+## 已知限制（诚实记录）
+
+- `npm test` 当前 55/58：三个 APK 内容验收测试（`test/voice-plugin.test.js` 的「debug APK 已构建 / 含 sherpa-onnx .so / 含 ASR+TTS 模型」）需要先出 APK。
+- APK 构建链未在本机打通，阻塞点是**环境**而非代码：
+  1. `dl.google.com` 直连超时；已用 `~/.gradle/init.gradle`（阿里云镜像）+ `~/.gradle/gradle.properties`（显式代理 127.0.0.1:7897）解决 AGP/依赖解析。
+  2. **NDK 27.0.12077973 未安装**（llama-cpp-pro 原生编译必需）；需 `sdkmanager "ndk;27.0.12077973"`（约 1GB+）。
+  3. `models/`（ASR/TTS 模型）为空且 gitignore，仓库内**无模型下载脚本**——模型来源尚未解决。
+- 决策（2026-10-12）：APK 真机验收**后置**，接受 55/58。解封条件：装 NDK + 解决 sherpa-onnx(jitpack) 与模型文件下载。
